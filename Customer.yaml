@@ -1,0 +1,116 @@
+swagger: '2.0'
+basePath: /customerdb/v1
+info:
+  title: Customer Database
+  description: This is the customer database sample Swagger document included with IBM Integration Bus.
+  version: 1.0.0
+  x-ibm-name: customer-database
+definitions:
+  Customer:
+    properties:
+      id:
+        type: integer
+      firstname:
+        type: string
+      lastname:
+        type: string
+      address:
+        type: string
+    required:
+      - firstname
+      - lastname
+      - address
+tags:
+  - name: customers
+    description: Operations on customers in the customer database
+paths:
+  /customers:
+    get:
+      operationId: getCustomers
+      summary: Get all customers from the database
+      parameters:
+        - name: max
+          in: query
+          description: Maximum number of customers to get from the database
+          required: false
+          type: integer
+      responses:
+        '200':
+          description: An array of customers from the database
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Customer'
+      tags:
+        - customers
+    post:
+      operationId: addCustomer
+      summary: Add a customer to the database
+      parameters:
+        - name: body
+          in: body
+          description: The customer to add to the database
+          required: true
+          schema:
+            $ref: '#/definitions/Customer'
+      responses:
+        '200':
+          description: If the customer was successfully added to the database
+      tags:
+        - customers
+  '/customers/{customerId}':
+    get:
+      operationId: getCustomer
+      summary: Get a specified customer from the database
+      parameters:
+        - name: customerId
+          in: path
+          description: The ID of the customer to get from the database
+          required: true
+          type: integer
+      responses:
+        '200':
+          description: The specified customer from the database
+          schema:
+            $ref: '#/definitions/Customer'
+      tags:
+        - customers
+    delete:
+      operationId: deleteCustomer
+      summary: Delete a specified customer from the database
+      parameters:
+        - name: customerId
+          in: path
+          description: The ID of the customer to delete from the database
+          required: true
+          type: integer
+        - name: Authorization-Key
+          in: header
+          description: Provide the authorization key that permits the customer to be deleted from the database
+          required: true
+          type: string
+      responses:
+        '200':
+          description: If the customer was successfully deleted from the database
+      tags:
+        - customers
+x-ibm-configuration:
+  enforced: true
+  testable: true
+  phase: realized
+  cors:
+    enabled: true
+  assembly:
+    execute:
+      - gatewayscript:
+          title: gatewayscript
+          version: 1.0.0
+          source: "//Declare Variables\nvar dummyString='\"String\"';\nvar dummyNumber='1234';\nvar dummyBoolean='true';\nvar dummyDateTime='\"2018-08-01T07:42:32.359Z\"';\nvar dummyDate='\"2018-08-01\"';\n\nvar RootDataType;\nvar def;\nvar swaggerDef;\nvar parameters;\nvar globalResponse;\n\nvar code;\nvar description;\n\n// Fetch path and verb from incoming swagger document\nvar doc = apim.getvariable('api.document');\nvar path = apim.getvariable('api.operation.path');\nvar verb = (apim.getvariable('request.verb')).toLowerCase();\n\n//Function for creating dummy response as per swagger\n\nfunction createGlobalResponse(x)\n{\n    var defL = swaggerDef[x].properties;\n    for (var prop in defL)\n    {\n        var propName=prop;\n        var propType= defL[prop].type;\n\t\tvar propFormat= defL[prop].format;\n\t\tvar propEnum= defL[prop].enum;\n\t\tvar propEnumVal;\n\t\tvar propEnumFlag = false;\n\t\tif(propEnum !== undefined)\n\t\t{\n\t\t   propEnumFlag= true; \n\t\t   propEnumVal = defL[prop].enum[0];\n\t\t}\n        var lastCharacter =globalResponse.slice(-1);    \n \n        switch(propType)\n        {\n            case \"array\":\n\t\t\t\t\n\t\t\t\tvar arrayType=defL[prop].items.type;\n\t\t\t\tvar ref=\"$ref\";\n                var y = defL[prop].items[ref];\n\t\t\t\t\n\t\t\t\t/* if array has a reference to other object*/\n\t\t\t\tif(!(y===undefined))\n\t\t\t\t\t\n\t\t\t\t{\n\t\t\t\t\n\t\t\t\t\tif(lastCharacter==='{')\n\t\t\t\t\t{\n\t\t\t\t\t\tglobalResponse = globalResponse + '\"' + propName + '\":' +  '[{';\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tglobalResponse = globalResponse + ',\"' + propName + '\":' +  '[{';\n\t\t\t\t\t}\n                \n\t\t\t\t\ty=y.substr(14);\n\t\t\t\t\tcreateGlobalResponse(y);\n\t\t\t\t\tglobalResponse = globalResponse + '}]';\n\t\t\t\t}\n\t\t\t\t/* if array does not has a reference to other object and of type string*/\n\t\t\t\tif(arrayType===\"string\")\n\t\t\t\t{\n\t\t\t\t\tif(lastCharacter==='{')\n\t\t\t\t\t{\n\t\t\t\t\t\tglobalResponse = globalResponse + '\"' + propName + '\":' +  '[' + dummyString + ']';\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tglobalResponse = globalResponse + ',\"' + propName + '\":' +  '[' + dummyString + ']';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\t\n                break;\n            \n            case undefined:\n                if(lastCharacter==='{')\n                {\n                    globalResponse = globalResponse + '\"' + propName + '\":' +  '{';\n                }\n                \n                else\n                {\n                    \n                    globalResponse = globalResponse + ',\"' + propName + '\":' +  '{';\n                }\n                var ref=\"$ref\";\n                var y = defL[prop][ref];\n                y=y.substr(14);\n                createGlobalResponse(y);\n\t\t\t\tglobalResponse = globalResponse + '}';\n                break;\n                \n\t\t\tcase \"string\":\n\t\t\t\tvar OtherThanString;\n\t\t\t\t\n\t\t\t\tif(propFormat === 'date-time')\n\t\t\t\t{\n\t\t\t\t\tOtherThanString = dummyDateTime;\n\t\t\t\t}\n\t\t\t\telse if(propFormat === 'date')\n\t\t\t\t{\n\t\t\t\t\tOtherThanString = dummyDate;\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tOtherThanString = dummyString;\n\t\t\t\t}\n\t\t\t\n\t\t\t\tif (propEnumFlag)\n\t\t\t\t{\n\t\t\t\t   OtherThanString = '\"' +  propEnumVal + '\"';\n\t\t\t\t}\n\t\t\t\t\n                if(lastCharacter==='{')\n                {\n                    globalResponse = globalResponse + '\"' + propName +'\":' + OtherThanString;\n                }\n                \n                else\n                {\n\n                    globalResponse = globalResponse + ',\"' + propName +'\":' + OtherThanString;\n                }\n                break;\n\n            case \"number\": \n                if(lastCharacter==='{')\n                {\n                    globalResponse = globalResponse + '\"' + propName +'\":' + dummyNumber;\n                }\n                else\n                {\n                    \n                    globalResponse = globalResponse + ',\"' + propName +'\":' + dummyNumber;\n                }\n                break;\n\t\t\tcase \"integer\": \n                if(lastCharacter==='{')\n                {\n                    globalResponse = globalResponse + '\"' + propName +'\":' + dummyNumber;\n                }\n                else\n                {\n                    \n                    globalResponse = globalResponse + ',\"' + propName +'\":' + dummyNumber;\n                }\n                break;\n            \n            case \"boolean\":\n                if(lastCharacter==='{')\n                {\n                    globalResponse = globalResponse + '\"' + propName +'\":' + dummyBoolean;\n                }\n                else\n                {\n                    \n                    globalResponse = globalResponse + ',\"' + propName +'\":' + dummyBoolean;\n                }\n                break;\n        }\n        \n       \n        \n    }\n    \n}\n\n\n//Check if Swagger Response contains the 200,201 or 202 success response\n\nif(doc.paths[path][verb].responses[201])\n{\t\n\tcode = 201;\n\tdescription = 'Created';\n\n}\nelse if(doc.paths[path][verb].responses[202])\n{\n\tcode = 202;\n\tdescription = 'Accepted';\n\n}\nelse\n{\n\tcode = 200;\n\tdescription = 'OK';\n}\n\nvar responseHeaders = doc.paths[path][verb].responses[code].headers;\n\nfor (var head in responseHeaders)\n{\n    var txt = 'message.headers.'+ head;\n    apim.setvariable(txt, '1');\n}\n\nvar schemaData = doc.paths[path][verb].responses[code].schema;\n\nif (!(schemaData ===undefined))\n{\n\tRootDataType= doc.paths[path][verb].responses[code].schema.type;\n\tif (RootDataType === 'array')\n\t{\n\t\tparameters =  doc.paths[path][verb].responses[code].schema.items.$ref;\n\t\tglobalResponse =\"[{\";\n\t}\n\telse\n\t{\n\t\tparameters =  doc.paths[path][verb].responses[code].schema.$ref;\n\t\tglobalResponse =\"{\";\n\t}\n\n\tdef =  parameters.substr(14);\n\tswaggerDef= doc.definitions;\n\n\tcreateGlobalResponse(def);\n\n\tif (RootDataType === 'array')\n\t{\n\t\tglobalResponse = globalResponse + '}]';\n\t}\n\telse\n\t{\n\t\tglobalResponse = globalResponse + '}';\n\t}\n}\n\napim.output('application/json');\n\napim.setvariable('message.status.code', code);\napim.setvariable('message.status.reason', description);\napim.setvariable('message.body', globalResponse);"
+    catch: []
+schemes:
+  - https
+host: $(catalog.host)
+consumes:
+  - application/json
+produces:
+  - application/json
